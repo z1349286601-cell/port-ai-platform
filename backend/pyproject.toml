@@ -1,0 +1,9 @@
+[project]
+name = "port-ai-platform"
+version = "0.1.0"
+description = "Port AI Intelligent Platform - Phase 1"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,28 @@
+# 输入安全过滤规则（热加载，→ 三.3.6）
+# 匹配任一 pattern 则触发对应 action
+
+jailbreak_patterns:
+  - "ignore previous instructions"
+  - "忽略.*指令"
+  - "system prompt"
+  - "你是.*角色"
+  - "扮演"
+  - "pretend you are"
+
+separator_patterns:
+  - "---SYSTEM---"
+  - "<\\|im_start\\|>"
+  - "\\[/INST\\]"
+  - "<\\|system\\|>"
+  - "<\\|endoftext\\|>"
+
+sensitive_patterns:
+  - "DROP TABLE"
+  - "INSERT INTO"
+  - "DELETE FROM"
+  - "1=1"
+  - "OR '1'='1'"
+  - "\\.\\.\\/"
+  - "etc/passwd"
+
+max_repeat_chars: 200

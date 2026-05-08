@@ -1,0 +1,24 @@
+rules:
+  - patterns: ["箱.*在哪", "查询.*贝位", "箱号"]
+    intent: data_query
+    sub_type: single_box
+  - patterns: ["安全.*规定", "操作.*流程", "SOP", "规范", "应急预案"]
+    intent: document_qa
+  - patterns: ["靠泊", "泊位.*占用", "船舶.*计划", "到港"]
+    intent: data_query
+    sub_type: schedule
+  - patterns: ["进度", "工班", "效率"]
+    intent: data_query
+    sub_type: progress
+  - patterns: ["设备.*状态", "岸桥", "门机", "故障"]
+    intent: data_query
+    sub_type: equipment
+  - patterns: ["能耗", "用电", "碳排放", "发电"]
+    intent: data_query
+    sub_type: energy
+  - patterns: ["堆场", "空位", "容量"]
+    intent: data_query
+    sub_type: yard
+  - patterns: ["闸口", "通行", "进出"]
+    intent: data_query
+    sub_type: gate
