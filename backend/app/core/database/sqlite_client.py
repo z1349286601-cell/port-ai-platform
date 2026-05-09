@@ -41,12 +41,18 @@ class SQLiteClient:
 
     async def execute_readonly(self, sql: str, params: tuple = (), timeout: float = 5.0,
                                max_rows: int = 500) -> list[dict]:
-        await self._conn.execute(f"PRAGMA query_only=ON")
+        import asyncio
+        await self._conn.execute("PRAGMA query_only=ON")
         try:
-            self._conn._conn.set_progress_handler(lambda: None, int(timeout * 1000))
-            cursor = await self._conn.execute(f"SELECT * FROM ({sql}) LIMIT {max_rows}", params)
+            wrapped_sql = f"SELECT * FROM ({sql}) LIMIT {max_rows}"
+            cursor = await asyncio.wait_for(
+                self._conn.execute(wrapped_sql, params),
+                timeout=timeout,
+            )
             rows = await cursor.fetchall()
             cols = [desc[0] for desc in cursor.description] if cursor.description else []
+        except asyncio.TimeoutError:
+            raise TimeoutError(f"SQL query timed out after {timeout}s")
         finally:
             await self._conn.execute("PRAGMA query_only=OFF")
 

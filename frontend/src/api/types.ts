@@ -40,12 +40,47 @@ export interface ErrorEvent {
   trace_id: string
 }
 
+export interface ThinkingEvent {
+  intent: string
+  confidence: number
+  reasoning: string
+  rule_triggered: boolean
+  rule_sub_type?: string
+  domain?: string
+  sql?: string
+  row_count?: number
+  execution_ms?: number
+  retry_count?: number
+  cache_hit?: boolean
+  chunks_retrieved?: number
+  top_relevance_score?: number
+}
+
 export type SSEEvent =
   | { type: 'intent'; data: IntentEvent }
+  | { type: 'thinking'; data: ThinkingEvent }
   | { type: 'token'; data: TokenEvent }
   | { type: 'sources'; data: SourcesEvent }
   | { type: 'done'; data: DoneEvent }
   | { type: 'error'; data: ErrorEvent }
+
+export interface ThinkingData {
+  intent: string
+  confidence: number
+  reasoning: string
+  rule_triggered: boolean
+  rule_sub_type?: string
+  // data_query pipeline
+  domain?: string
+  sql?: string
+  row_count?: number
+  execution_ms?: number
+  retry_count?: number
+  cache_hit?: boolean
+  // document_qa pipeline
+  chunks_retrieved?: number
+  top_relevance_score?: number
+}
 
 export interface Message {
   id: number
@@ -53,6 +88,8 @@ export interface Message {
   content: string
   intent?: string
   sources?: SourceItem[]
+  thinkingData?: ThinkingData
+  latencyMs?: number
 }
 
 export interface Session {

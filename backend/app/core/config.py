@@ -1,12 +1,23 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
+
+def _resolve_path(p: str) -> str:
+    """Resolve a relative path against the project root."""
+    path = Path(p)
+    if not path.is_absolute():
+        return str(_PROJECT_ROOT / path)
+    return p
 
 
 class Settings(BaseSettings):
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": str(_PROJECT_ROOT / ".env"), "env_file_encoding": "utf-8"}
 
     # LLM
     llm_base_url: str = "http://localhost:11434/v1"
-    llm_model_name: str = "qwen3-vl:8b"
+    llm_model_name: str = "qwen3:8b"
     llm_api_key: str = "not-needed"
 
     # Embedding
@@ -34,6 +45,11 @@ class Settings(BaseSettings):
 
     # Intent router
     intent_confidence_threshold: float = 0.7
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.chroma_persist_dir = _resolve_path(self.chroma_persist_dir)
+        self.sqlite_data_dir = _resolve_path(self.sqlite_data_dir)
 
 
 settings = Settings()

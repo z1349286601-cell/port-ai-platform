@@ -59,12 +59,34 @@ class RAGPipeline:
         sources = self.generator.format_sources(chunks)
         return {"answer": answer, "sources": sources}
 
+    async def retrieve(self, question: str, top_k: int = 5) -> dict:
+        chunks = await self.retriever.retrieve(question, top_k=top_k)
+        self._pending_chunks = chunks
+        self._last_sources = self.generator.format_sources(chunks)
+        top_score = chunks[0].score if chunks else 0.0
+        return {
+            "chunks_retrieved": len(chunks),
+            "top_relevance_score": round(top_score, 4),
+        }
+
+    async def stream_from_pending(self, question: str, history: list[dict] = None) -> AsyncIterator[str]:
+        chunks = getattr(self, "_pending_chunks", [])
+        async for token in self.generator.generate_stream(question, chunks, history):
+            yield token
+
     async def query_stream(self, question: str, top_k: int = 5,
                            history: list[dict] = None) -> AsyncIterator[str]:
-        chunks = await self.retriever.retrieve(question, top_k=top_k)
-        self._last_sources = self.generator.format_sources(chunks)
-        async for token in self.generator.generate_stream(question, chunks, history):
+        await self.retrieve(question, top_k=top_k)
+        async for token in self.stream_from_pending(question, history):
             yield token
 
     def get_last_sources(self) -> list[dict]:
         return getattr(self, "_last_sources", [])
+
+    def get_last_thinking(self) -> dict:
+        chunks = getattr(self, "_pending_chunks", [])
+        top_score = chunks[0].score if chunks else 0.0
+        return {
+            "chunks_retrieved": len(chunks),
+            "top_relevance_score": round(top_score, 4),
+        }

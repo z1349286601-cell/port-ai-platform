@@ -49,3 +49,22 @@ class ChromaVectorStore(BaseVectorStore):
 
     async def count(self) -> int:
         return self.collection.count()
+
+    async def list_documents(self) -> list[dict]:
+        """List unique documents with chunk counts from metadata."""
+        docs: dict[str, int] = {}
+        result = self.collection.get(include=["metadatas"])
+        if result["metadatas"]:
+            for meta in result["metadatas"]:
+                if meta and "doc_name" in meta:
+                    doc_name = meta["doc_name"]
+                    docs[doc_name] = docs.get(doc_name, 0) + 1
+        return [{"doc_name": k, "chunk_count": v, "status": "ready"} for k, v in docs.items()]
+
+    async def delete_by_doc_name(self, doc_name: str) -> int:
+        """Delete all chunks for a document. Returns number of chunks deleted."""
+        result = self.collection.get(where={"doc_name": doc_name}, include=["metadatas"])
+        chunk_ids = result["ids"] if result["ids"] else []
+        if chunk_ids:
+            self.collection.delete(ids=chunk_ids)
+        return len(chunk_ids)

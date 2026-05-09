@@ -6,7 +6,18 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // Disable buffering for SSE streaming
+            if (req.url?.includes('/chat/stream')) {
+              proxyReq.setHeader('Connection', 'keep-alive')
+            }
+          })
+        },
+      },
     },
   },
 })
