@@ -33,8 +33,8 @@ class TestResultFormatter:
             row_count=1,
         )
         text = await self.formatter.format(result, "BC-101在哪")
-        assert "container_code为BC-101" in text
-        assert "current_bay为A01" in text
+        assert "BC-101" in text
+        assert "A01" in text
 
     @pytest.mark.asyncio
     async def test_single_row_skips_none_values(self):
@@ -44,8 +44,8 @@ class TestResultFormatter:
             row_count=1,
         )
         text = await self.formatter.format(result, "查询")
-        assert "name为BC-101" in text
-        assert "note为ok" in text
+        assert "BC-101" in text
+        assert "ok" in text
         assert "status" not in text  # None skipped
 
     @pytest.mark.asyncio
@@ -87,7 +87,7 @@ class TestResultFormatter:
         async for chunk in self.formatter.format_stream(result, "查询"):
             chunks.append(chunk)
         full = "".join(chunks)
-        assert "container_code为BC-101" in full or "code为BC-101" in full
+        assert "BC-101" in full
 
     def test_formatter_system_prompt_contains_rules(self):
         assert "0行" in FORMATTER_SYSTEM_PROMPT

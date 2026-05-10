@@ -51,6 +51,9 @@ class SchemaExtractor:
     }
 
     COLUMN_DESC_OVERRIDES = {
+        "type_code": "设备类型编码",
+        "type_name": "设备类型名称",
+        "category": "设备大类",
         "berth_code": "泊位编号",
         "berth_name": "泊位名称",
         "max_draft": "最大吃水深度（米）",

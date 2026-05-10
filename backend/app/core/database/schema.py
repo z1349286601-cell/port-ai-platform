@@ -23,6 +23,7 @@ TABLE_DESCRIPTIONS = {
     "dim_vessel": "船舶维度表，记录船舶基本信息，如船名、IMO编号、船型、总吨位、载重吨",
     "dim_yard_block": "堆场区块维度表，记录堆场区块编号、类型（集装箱/散货/滚装）、容量",
     "dim_gate_lane": "闸口车道维度表，记录闸口编号、车道类型（进口/出口）、是否启用",
+    "dim_device_type": "设备类型维度表，记录设备类型编码和名称，如岸桥、场桥、叉车、传送带",
     "dim_device": "设备维度表，记录港口设备台账，如岸桥、门机、传送带的型号、厂家、安装日期",
     "dim_energy_type": "能源类型维度表，记录电力、燃油、天然气等能源分类",
 
@@ -216,6 +217,15 @@ CREATE INDEX IF NOT EXISTS idx_fact_gate_time ON fact_gate_transaction(gate_time
 EQUIPMENT_DDL = """
 
 PRAGMA foreign_keys = ON;
+
+-- dim_device_type: 设备类型维度表
+CREATE TABLE IF NOT EXISTS dim_device_type (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type_code TEXT NOT NULL UNIQUE,
+    type_name TEXT NOT NULL,
+    category TEXT COMMENT '设备大类',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- dim_device: 设备维度表
 CREATE TABLE IF NOT EXISTS dim_device (

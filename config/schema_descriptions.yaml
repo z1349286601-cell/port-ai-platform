@@ -1,0 +1,203 @@
+# =============================================================================
+# Phase 1a Schema Descriptions — NL2SQL 中文映射配置
+# 用于 schema_extractor.py 的 Column Description Overrides
+# 覆盖 production / equipment / energy 三库（显式包含 EQUIP-001 查询路径）
+# =============================================================================
+
+domains:
+  production:
+    description: "生产运营数据库，包含船舶、集装箱、泊位、堆场、闸口、工班、作业等港口核心业务数据"
+    tables:
+      dim_berth:
+        description: "泊位维度表，记录港口泊位的基本属性"
+        columns:
+          berth_code: "泊位编号"
+          berth_name: "泊位名称"
+          max_draft: "最大吃水深度（米）"
+          length: "泊位长度（米）"
+          berth_type: "泊位类型（CONTAINER/BULK/RO_RO/GENERAL）"
+          is_active: "是否启用"
+
+      dim_vessel:
+        description: "船舶维度表，记录船舶基本信息"
+        columns:
+          vessel_code: "船舶编码"
+          vessel_name_cn: "船舶中文名"
+          vessel_name_en: "船舶英文名"
+          imo_no: "IMO编号"
+          vessel_type: "船舶类型（CONTAINER/BULK/RO_RO/TANKER/GENERAL）"
+          gross_tonnage: "总吨位"
+          deadweight_ton: "载重吨（吨）"
+          teu_capacity: "标箱容量（TEU）"
+          ship_company: "船公司"
+
+      dim_yard_block:
+        description: "堆场区块维度表"
+        columns:
+          block_code: "堆场区块编码"
+          block_name: "堆场区块名称"
+          block_type: "区块类型（CONTAINER/BULK/RO_RO/DANGEROUS/REEFER）"
+          capacity_teu: "容量（TEU）"
+          max_tier: "最大堆存层数"
+
+      dim_gate_lane:
+        description: "闸口车道维度表"
+        columns:
+          lane_code: "闸口车道编号"
+          lane_name: "车道名称"
+          lane_type: "车道类型（INBOUND/OUTBOUND）"
+
+      fact_container:
+        description: "集装箱当前状态快照表"
+        columns:
+          container_code: "箱号"
+          container_type: "箱型（DRY_20/DRY_40/DANGEROUS等）"
+          container_status: "箱状态（ON_SITE/DISCHARGED/LOADED）"
+          current_bay: "当前贝位"
+          yard_block_code: "堆场区块编码"
+          vessel_code: "关联船舶"
+          entry_time: "进港时间"
+          on_site_days: "在场天数"
+          is_dangerous: "是否危险品"
+          dangerous_class: "危险品类别"
+          customs_status: "海关状态"
+          container_owner: "箱主"
+
+      fact_vessel_schedule:
+        description: "船舶计划事实表，每条记录=一次靠泊计划"
+        columns:
+          schedule_id: "计划编号"
+          vessel_code: "船舶编码"
+          berth_code: "泊位编号"
+          eta: "预计到港时间"
+          etb: "预计靠泊时间"
+          etd: "预计离泊时间"
+          voyage_in: "进口航次"
+          voyage_out: "出口航次"
+          status: "状态（SCHEDULED/BERTHED/DEPARTED/CANCELLED）"
+
+      fact_vessel_operation:
+        description: "船舶作业事实表，每次move一条记录"
+        columns:
+          operation_id: "作业编号"
+          vessel_code: "船舶编码"
+          berth_code: "泊位编号"
+          container_code: "箱号"
+          move_type: "作业类型（DISCHARGE/LOAD/RESTACK）"
+          move_time: "作业时间"
+          crane_id: "岸桥编号"
+          shift: "班次（DAY/NIGHT）"
+
+      fact_shift_progress:
+        description: "工班进度事实表"
+        columns:
+          shift_date: "班次日期"
+          shift: "班次（DAY/NIGHT）"
+          vessel_code: "船舶编码"
+          berth_code: "泊位编号"
+          planned_moves: "计划作业量"
+          completed_moves: "已完成作业量"
+          progress_pct: "进度百分比"
+          crane_cnt: "作业岸桥数"
+
+      fact_gate_transaction:
+        description: "闸口通行事实表，每辆车一次进出记录"
+        columns:
+          transaction_id: "通行记录编号"
+          lane_code: "车道编号"
+          container_code: "箱号"
+          truck_plate: "车牌号"
+          gate_time: "过闸时间"
+          direction: "方向（IN/OUT）"
+          vehicle_type: "车辆类型"
+
+      agg_operation_volume_daily:
+        description: "每日作业量汇总表"
+        columns:
+          stat_date: "统计日期"
+          berth_code: "泊位编号"
+          vessel_type: "船舶类型"
+          discharge_cnt: "卸船箱量"
+          load_cnt: "装船箱量"
+          total_moves: "总作业量（moves）"
+
+      agg_yard_occupancy_daily:
+        description: "每日堆场占用汇总表"
+        columns:
+          stat_date: "统计日期"
+          block_code: "堆场区块编码"
+          container_cnt: "在场箱量"
+          occupancy_pct: "占用率百分比"
+          dangerous_cnt: "危险品箱数量"
+          reefr_cnt: "冷藏箱数量"
+
+  equipment:
+    description: "设备运维数据库，包含设备台账、运行状态、IOT监控等数据"
+    tables:
+      dim_device_type:
+        description: "设备类型维度表"
+        columns:
+          type_code: "设备类型编码"
+          type_name: "设备类型名称"
+          category: "设备大类"
+
+      dim_device:
+        description: "设备维度表，记录港口设备台账"
+        columns:
+          device_code: "设备编码"
+          device_name: "设备名称"
+          device_type: "设备类型（CRANE/VEHICLE/CONVEYOR/VESSEL/OTHER）"
+          model: "型号"
+          manufacturer: "厂家"
+          install_date: "安装日期"
+          design_life_year: "设计寿命（年）"
+          health_score: "健康评分（0-100）"
+          status: "当前状态（RUNNING/STANDBY/FAULT/MAINTENANCE）"
+
+      fact_device_operation:
+        description: "设备运行事实表，记录设备每次启停、运行时长、故障信息"
+        columns:
+          operation_id: "作业编号"
+          device_code: "设备编码"
+          start_time: "开始时间"
+          end_time: "结束时间"
+          running_hours: "运行小时数"
+          status: "运行状态"
+          fault_code: "故障代码"
+          fault_desc: "故障描述"
+          operator_name: "操作员姓名"
+
+      fact_iot_monitor:
+        description: "设备IOT监控日快照表"
+        columns:
+          monitor_date: "监测日期"
+          device_code: "设备编码"
+          temperature: "温度（℃）"
+          vibration: "振动值（mm/s）"
+          current_a: "电流（A）"
+          power_kw: "功率（kW）"
+          is_abnormal: "是否异常"
+
+  energy:
+    description: "能源环保数据库，包含电力消耗、新能源发电、碳排放等数据"
+    tables:
+      dim_energy_type:
+        description: "能源类型维度表"
+        columns:
+          energy_code: "能源编码"
+          energy_name: "能源名称"
+          energy_category: "能源类别（ELECTRICITY/FUEL/GAS/WATER/RENEWABLE）"
+          unit: "计量单位"
+          co2_factor: "碳排放因子"
+
+      fact_electricity_daily:
+        description: "日电耗事实表"
+        columns:
+          stat_date: "统计日期"
+          dept_code: "部门编码"
+          dept_name: "部门名称"
+          consumption_kwh: "用电量（kWh）"
+          peak_kwh: "峰时用电"
+          valley_kwh: "谷时用电"
+          pv_generation_kwh: "光伏发电量"
+          wind_generation_kwh: "风力发电量"

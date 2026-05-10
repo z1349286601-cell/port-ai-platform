@@ -8,6 +8,7 @@ import sqlite3
 import os
 import random
 import sys
+import time
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
@@ -16,14 +17,31 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "sqlite")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 random.seed(42)
-NOW = datetime(2026, 5, 8)
+NOW = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 DAYS_BACK = 60
 
 
 def create_db(name):
     path = os.path.join(DATA_DIR, f"{name}.db")
-    if os.path.exists(path):
-        os.remove(path)
+    # Retry file removal in case of lock contention (Windows)
+    for attempt in range(5):
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+            break
+        except PermissionError:
+            if attempt < 4:
+                time.sleep(0.5)
+            else:
+                raise
+    # Also clean up WAL/SHM files
+    for suffix in ("-wal", "-shm"):
+        wal_path = path + suffix
+        try:
+            if os.path.exists(wal_path):
+                os.remove(wal_path)
+        except OSError:
+            pass
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
@@ -314,14 +332,29 @@ def init_production():
         progress,
     )
 
-    # fact_gate_transaction (~200 rows)
+    # fact_gate_transaction (~200 rows, ensure today has data)
     gates = []
-    for i in range(200):
+    # Reserve ~40 transactions for today
+    today_start = NOW.strftime("%Y-%m-%d")
+    for i in range(40):
+        tid = f"GT-TODAY-{i+1:04d}"
+        lane = random.choice([l[0] for l in lanes])
+        direction = "IN" if lane.startswith("IN") else "OUT"
+        hour = random.randint(0, 23)
+        minute = random.randint(0, 59)
+        gt = f"{today_start} {hour:02d}:{minute:02d}"
+        truck = f"鲁B{random.randint(10000,99999)}"
+        vtype = random.choice(["CONTAINER_TRUCK"] * 7 + ["BULK_TRUCK"] * 2 + ["FLATBED"])
+        container = f"BC-{random.randint(1,200):03d}" if vtype == "CONTAINER_TRUCK" else None
+        gates.append((tid, lane, container, truck, gt, direction, vtype))
+    # Remaining ~160 distributed over past 30 days
+    for i in range(160):
         tid = f"GT-{i+1:06d}"
         lane = random.choice([l[0] for l in lanes])
         direction = "IN" if lane.startswith("IN") else "OUT"
-        hours_ago = random.randint(0, 23)
-        gt = (NOW - timedelta(hours=hours_ago, minutes=random.randint(0, 59))).strftime("%Y-%m-%d %H:%M")
+        days_ago = random.randint(1, 30)
+        hour = random.randint(0, 23)
+        gt = (NOW - timedelta(days=days_ago, hours=hour, minutes=random.randint(0, 59))).strftime("%Y-%m-%d %H:%M")
         truck = f"鲁B{random.randint(10000,99999)}"
         vtype = random.choice(["CONTAINER_TRUCK"] * 7 + ["BULK_TRUCK"] * 2 + ["FLATBED"])
         container = f"BC-{random.randint(1,200):03d}" if vtype == "CONTAINER_TRUCK" else None
@@ -371,6 +404,14 @@ def init_equipment():
     conn = create_db("equipment")
 
     conn.executescript("""
+    CREATE TABLE dim_device_type (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type_code TEXT NOT NULL UNIQUE,
+        type_name TEXT NOT NULL,
+        category TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE dim_device (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         device_code TEXT NOT NULL UNIQUE,
@@ -412,6 +453,19 @@ def init_equipment():
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     """)
+
+    # dim_device_type (5 rows for Phase 1a, plan specifies 8 for full coverage)
+    device_types = [
+        ("CRANE", "岸桥/场桥/门机", "起重设备"),
+        ("VEHICLE", "叉车/正面吊/自卸车", "运输车辆"),
+        ("CONVEYOR", "传送带", "输送设备"),
+        ("VESSEL", "装船机/卸船机", "船舶设备"),
+        ("OTHER", "其他", "其他设备"),
+    ]
+    conn.executemany(
+        "INSERT INTO dim_device_type (type_code, type_name, category) VALUES (?,?,?)",
+        device_types,
+    )
 
     # dim_device (15 rows)
     devices = [

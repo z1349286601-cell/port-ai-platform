@@ -26,7 +26,7 @@ def check_sqlite_data():
                        "fact_container", "fact_vessel_schedule", "fact_vessel_operation",
                        "fact_shift_progress", "fact_gate_transaction",
                        "agg_operation_volume_daily", "agg_yard_occupancy_daily"],
-        "equipment": ["dim_device", "fact_device_operation", "fact_iot_monitor"],
+        "equipment": ["dim_device_type", "dim_device", "fact_device_operation", "fact_iot_monitor"],
         "energy": ["dim_energy_type", "fact_electricity_daily"],
         "sessions": ["sessions", "messages"],
     }
@@ -54,23 +54,23 @@ async def check_chromadb():
     """Verify ChromaDB has documents and can retrieve."""
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend"))
     from app.core.vector_store.chroma_store import ChromaVectorStore
-    from app.core.config import settings
+    from app.core.embedding.openai_embedding import OpenAIEmbeddingClient
 
-    store = ChromaVectorStore(
-        persist_dir=settings.chroma_persist_dir,
-        collection_name=settings.chroma_collection_name,
-    )
-    await store.initialize()
+    store = ChromaVectorStore()
+    embed_client = OpenAIEmbeddingClient()
 
-    count = await store.count()
+    count = store.collection.count()
 
-    # Try a simple similarity search
-    results = await store.similarity_search("safety equipment for dock workers", top_k=3)
+    # Get embedding for query text using our BGE-M3 client (1024-dim)
+    query_embedding = await embed_client.embed_query("安全装备要求")
+
+    # Search with explicit embedding
+    results = store.collection.query(query_embeddings=[query_embedding], n_results=3)
 
     return {
         "chunk_count": count,
-        "search_test": f"retrieved {len(results)} chunks" if results else "❌ no results",
-        "top_result_preview": results[0].get("excerpt", "")[:100] if results else "N/A",
+        "search_test": f"retrieved {len(results['ids'][0])} chunks" if results and results.get("ids") and results["ids"][0] else "❌ no results",
+        "top_result_preview": results["documents"][0][0][:100] if results and results.get("documents") and results["documents"][0] else "N/A",
     }
 
 
@@ -79,15 +79,21 @@ async def check_nl2sql_schema():
     from app.nl2sql.schema_extractor import SchemaExtractor
 
     extractor = SchemaExtractor()
-    schema = await extractor.extract()
 
-    domains = list(schema.keys()) if isinstance(schema, dict) else []
-    table_count = sum(len(v.get("tables", [])) for v in schema.values()) if isinstance(schema, dict) else 0
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sqlite")
+    domains = ["production", "equipment", "energy"]
+    schemas = {}
+    for domain in domains:
+        db_path = os.path.join(base, f"{domain}.db")
+        if os.path.exists(db_path):
+            schemas[domain] = await extractor.extract(db_path, domain)
+
+    table_count = sum(len(s.tables) for s in schemas.values())
 
     return {
-        "domains": domains,
+        "domains": list(schemas.keys()),
         "total_tables": table_count,
-        "status": "✅" if domains else "❌ no domains found",
+        "status": "✅" if schemas else "❌ no domains found",
     }
 
 
@@ -137,13 +143,14 @@ async def check_sql_validator():
 
     results = []
     for sql, should_pass in test_cases:
-        valid, reason = await validator.validate(sql)
+        result = validator.validate(sql)
+        reason_str = "; ".join(result.errors) if result.errors else ""
         results.append({
             "sql": sql[:60],
-            "valid": valid,
-            "reason": reason[:80] if reason else "",
+            "valid": result.is_valid,
+            "reason": reason_str[:80],
             "expected_ok": should_pass,
-            "match": "✅" if valid == should_pass else "❌",
+            "match": "✅" if result.is_valid == should_pass else "❌",
         })
 
     return results

@@ -33,7 +33,13 @@ Q: 未来3天有哪些船舶靠泊？
 A: SELECT v.vessel_name_cn, vs.eta, vs.berth_code
 FROM fact_vessel_schedule vs
 JOIN dim_vessel v ON vs.vessel_code = v.vessel_code
-WHERE vs.eta BETWEEN date('now') AND date('now', '+3 days');
+WHERE date(vs.eta) BETWEEN date('now') AND date('now', '+3 days');
+
+Q: 今晚有哪些船舶到港？
+A: SELECT v.vessel_name_cn, vs.eta, vs.berth_code
+FROM fact_vessel_schedule vs
+JOIN dim_vessel v ON vs.vessel_code = v.vessel_code
+WHERE date(vs.eta) = date('now') AND vs.status IN ('SCHEDULED','BERTHED');
 
 Q: 1号泊位目前作业哪条船？
 A: SELECT v.vessel_name_cn, vs.voyage_code
@@ -46,7 +52,7 @@ A: SELECT SUM(total_moves) as monthly_teu FROM agg_operation_volume_daily
 WHERE stat_date >= date('now','start of month');
 
 Q: 在场超过7天的进口重箱有哪些？
-A: SELECT container_code, current_bay, on_site_days
+A: SELECT container_code, current_bay, on_site_days, container_type
 FROM fact_container
 WHERE container_status = 'ON_SITE' AND on_site_days > 7;
 
@@ -59,6 +65,9 @@ GROUP BY berth_code;
 Q: 在场集装箱总数？
 A: SELECT COUNT(*) as total_containers FROM fact_container WHERE container_status = 'ON_SITE';
 
+Q: 1号岸桥目前状态怎么样？
+A: SELECT device_code, device_name, status, health_score FROM dim_device WHERE device_code = 'QC-01';
+
 Q: 所有岸桥设备当前状态？
 A: SELECT device_code, device_name, status, health_score FROM dim_device WHERE device_type = 'CRANE';
 
@@ -66,9 +75,16 @@ Q: 本月各部门用电量？
 A: SELECT dept_name, SUM(consumption_kwh) as total_kwh FROM fact_electricity_daily
 WHERE stat_date >= date('now','start of month') GROUP BY dept_name;
 
+Q: 这个月港口总用电量是多少？
+A: SELECT SUM(consumption_kwh) as total_kwh FROM fact_electricity_daily
+WHERE stat_date >= date('now','start of month');
+
 Q: 堆场各区块占用率？
 A: SELECT block_code, container_cnt, occupancy_pct FROM agg_yard_occupancy_daily
 WHERE stat_date = date('now') ORDER BY occupancy_pct DESC;
+
+Q: 今天闸口通行了多少车？
+A: SELECT COUNT(*) as vehicle_count FROM fact_gate_transaction WHERE date(gate_time) = date('now');
 """
 
 CORRECT_ERROR_PROMPT = """上一次生成的SQL校验失败：{errors}

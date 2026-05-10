@@ -83,20 +83,20 @@ class TestRuleMatch:
         ]
 
     def test_rule_matches_single_box(self):
-        assert self.router._rule_match("BC-101箱在哪里") == "data_query"
+        assert self.router._rule_match("BC-101箱在哪里")[0] == "data_query"
 
     def test_rule_matches_document_qa(self):
-        assert self.router._rule_match("安全规定是什么") == "document_qa"
+        assert self.router._rule_match("安全规定是什么")[0] == "document_qa"
 
     def test_rule_matches_chitchat(self):
-        assert self.router._rule_match("你好啊") == "chitchat"
+        assert self.router._rule_match("你好啊")[0] == "chitchat"
 
     def test_rule_no_match_returns_none(self):
-        assert self.router._rule_match("今天天气怎么样") is None
+        assert self.router._rule_match("今天天气怎么样")[0] is None
 
     def test_rules_empty_returns_none(self):
         self.router.rules = []
-        assert self.router._rule_match("箱号查询") is None
+        assert self.router._rule_match("箱号查询")[0] is None
 
 
 class TestClassifyWithRuleFallback:
